@@ -1,0 +1,2 @@
+GreenTech Fert - Sistema de Gestão de Insumos Agrícolas
+Este projeto foi desenvolvido como parte do Trabalho 2 da disciplina de Desenvolvimento de Software WEB, ministrada pelo Prof. Alexandre Cláudio de Almeida na PUC Goiás. O sistema foca na gestão e venda de fertilizantes, permitindo o controle de estoque e monitoramento de vendas em tempo real.
