@@ -1,9 +1,7 @@
 export interface IFertilizante {
-  id: number;
+  id: string;
   nome: string;
-  tipo: 'Nitrogenado' | 'Fosfatado' | 'Potássico' | 'Orgânico';
-  formulaNPK: string;
-  precoSaca: number;
-  estoqueSacas: number;
-  status: 'Disponível' | 'Esgotado';
+  marca: string;
+  preco: number;
+  quantidadeEstoque: number;
 }

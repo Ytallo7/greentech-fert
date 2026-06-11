@@ -1,11 +1,12 @@
 import { IFertilizante } from '../types/IFertilizante';
+
 interface ICardFertilizanteProps {
   item: IFertilizante;
-  onVenda: (id: number) => void;
+  onVenda: (id: string) => void;
 }
 
 export default function CardFertilizante({ item, onVenda }: ICardFertilizanteProps) {
-  const isEsgotado = item.status === 'Esgotado';
+  const isEsgotado = !item.quantidadeEstoque || item.quantidadeEstoque <= 0;
 
   return (
     <div className="col-12 col-md-6 col-lg-4 mb-4">
@@ -13,16 +14,15 @@ export default function CardFertilizante({ item, onVenda }: ICardFertilizantePro
         <div className="card-body d-flex flex-column">
           <h5 className="card-title text-success fw-bold">{item.nome}</h5>
           <div className="mb-2">
-            <span className="badge bg-secondary me-1">{item.tipo}</span>
-            <span className="badge bg-info text-dark">{item.formulaNPK}</span>
+            <span className="badge bg-secondary me-1">Marca: {item.marca}</span>
           </div>
           
           <p className="card-text mt-2">
-            <strong>Preço:</strong> R$ {item.precoSaca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <strong>Preço:</strong> R$ {item.preco?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
           </p>
           
-          <p className={`fw-bold ${item.estoqueSacas < 5 ? 'text-danger' : 'text-muted'}`}>
-            Estoque: {item.estoqueSacas} sacas
+          <p className={`fw-bold ${item.quantidadeEstoque < 5 ? 'text-danger' : 'text-muted'}`}>
+            Estoque: {item.quantidadeEstoque || 0} unidades
           </p>
           
           <button 
