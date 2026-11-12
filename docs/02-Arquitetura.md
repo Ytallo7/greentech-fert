@@ -14,30 +14,52 @@ A plataforma é dividida nos seguintes componentes principais:
 5.  **Barramento de Mensagens (Apache Kafka):** Fila de eventos que recebe os pacotes de dados sincronizados pelos aplicativos móveis e entrega à API Core de forma assíncrona.
 6.  **Banco de Dados (PostgreSQL):** Banco de dados relacional central que armazena os dados transacionais de todas as fazendas.
 
-## 3. Modelo Multi-Tenant (Isolamento de Dados)
+## 3. Diagramas Arquiteturais (C4 Model)
 
-O sistema adota o padrão **"Shared Database, Shared Schema"** (Banco e Esquema compartilhados). Para garantir que os dados de uma fazenda não se misturem com os de outra, a arquitetura exige o seguinte:
+### Nível 1: Diagrama de Contexto
+```mermaid
+C4Context
+  title C4 Model Nível 1: Diagrama de Contexto - GreenTech Fert SaaS
 
-*   **Coluna `tenant_id`:** Todas as tabelas de negócio (`insumos`, `talhoes`, `aplicacoes`, `estoque`) possuem uma coluna `tenant_id` (UUID ou Long).
-*   **Filtro Global:** A API Spring Boot intercepta todas as requisições ao banco de dados e adiciona automaticamente um filtro `WHERE tenant_id = ?` baseado no token de autenticação do usuário logado.
+  Person(gestor, "Gestor Agrícola", "Acessa relatórios e gerencia cadastros.")
+  Person(operador, "Operador de Campo", "Registra aplicações de insumos via app, mesmo offline.")
+  
+  System(greentech, "GreenTech Fert SaaS", "Plataforma de gestão de fazendas, controle de estoque e inteligência de dados.")
 
-## 4. Fluxo de Sincronização Assíncrona (Modo Offline)
+  Rel(gestor, greentech, "Analisa dados e gerencia operação", "HTTPS")
+  Rel(operador, greentech, "Sincroniza operações diárias", "HTTPS/Wi-Fi")
+  ```
 
-O grande desafio do sistema é lidar com vários tratores chegando na sede no fim do dia e sincronizando os dados simultaneamente via Wi-Fi.
+### Nível 2: Diagrama de Contêiners
 
-**O Fluxo:**
-1. O app detecta conexão com a internet.
-2. O app envia um *payload* JSON com todas as aplicações do dia para o endpoint de sincronização da API.
-3. A API recebe o *payload* e, em vez de salvar diretamente no banco de dados, ela posta uma mensagem no **Tópico Kafka** `aplicacoes-sync`.
-4. A API responde rapidamente ao celular com um status `202 Accepted` (Dados em processamento).
-5. Um *Worker* (consumidor) dentro da API Spring Boot consome as mensagens do Kafka uma a uma, valida as regras de negócio (ex: saldo de estoque) e efetiva a gravação no PostgreSQL. Isso evita sobrecarga de *lock* no banco de dados.
+```mermaid
+  C4Container
+  title C4 Model Nível 2: Diagrama de Contêineres - GreenTech Fert SaaS
 
-## 5. Modelagem Lógica Essencial (Entidade-Relacionamento)
+  Person(gestor, "Gestor Agrícola", "Usuário do painel web.")
+  Person(operador, "Operador de Campo", "Usuário do aplicativo móvel.")
 
-As entidades principais do domínio transacional são:
+  System_Boundary(greentech_boundary, "GreenTech Fert SaaS") {
+    Container(spa, "Frontend Web", "SPA, React/Angular", "Painel de gestão e relatórios.")
+    Container(app, "App Mobile", "React Native/Flutter, SQLite", "Aplicação offline-first para operação em campo.")
+    
+    Container(api_core, "API Core", "Java, Spring Boot", "Gerencia IAM, multi-tenancy, regras de negócio e consumo de eventos.")
+    Container(api_python, "Serviço de Inteligência", "Python, Pandas", "Gera previsões e análise de produtividade.")
+    
+    ContainerDb(db_sql, "Banco de Dados Central", "PostgreSQL", "Armazena dados transacionais (Multi-tenant).")
+    ContainerQueue(kafka, "Barramento de Mensagens", "Apache Kafka", "Fila de eventos de sincronização (aplicacoes-sync).")
+  }
 
-*   **`tenant` (Fazenda):** id, nome, cnpj, data_cadastro.
-*   **`usuario`:** id, tenant_id, nome, email, senha_hash, role (ADMIN, AGRONOMO, OPERADOR).
-*   **`talhao` (Área de Plantio):** id, tenant_id, identificacao, tamanho_hectares, cultura_atual.
-*   **`insumo`:** id, tenant_id, nome, tipo (FERTILIZANTE, DEFENSIVO, SEMENTE), unidade_medida, quantidade_estoque.
-*   **`aplicacao`:** id, tenant_id, talhao_id, insumo_id, usuario_id (operador), quantidade_aplicada, data_hora_aplicacao, data_hora_sincronizacao.
+  Rel(gestor, spa, "Acessa painel", "HTTPS")
+  Rel(operador, app, "Registra dados localmente", "SQLite DB")
+  Rel(operador, app, "Sincroniza pacotes (202 Accepted)", "JSON/HTTPS")
+  
+  Rel(spa, api_core, "Consome API", "JSON/HTTPS")
+  Rel(app, api_core, "Envia payload de sincronização", "JSON/HTTPS")
+  
+  Rel(api_core, kafka, "Posta payload bruto no tópico", "TCP")
+  Rel(kafka, api_core, "Worker consome e processa fila", "TCP")
+  
+  Rel(api_core, api_python, "Solicita previsões de consumo", "REST/gRPC")
+  Rel(api_core, db_sql, "Grava aplicação (com Filtro tenant_id)", "JDBC")
+  ```
